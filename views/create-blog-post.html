@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Blog Post</title>
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Create a New Blog Post</h1>
+        <form id="blogPostForm">
+            <label for="title">Title:</label><br>
+            <input type="text" id="title" name="title" required><br>
+            <label for="author">Author:</label><br>
+            <input type="text" id="author" name="author" required><br>
+            <label for="content">Content:</label><br>
+            <textarea id="content" name="content" rows="5" required></textarea><br>
+            <button type="submit">Create Blog Post</button>
+        </form>
+    </div>
+
+    <div class="container" id="blogPosts">
+        <!-- Existing blog posts will be rendered here -->
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const blogPostsContainer = document.getElementById('blogPosts');
+
+            // Function to render a blog post
+            const renderBlogPost = (post) => {
+                const postDiv = document.createElement('div');
+                postDiv.classList.add('blog-post');
+                postDiv.dataset.blogPostId = post.id;
+                postDiv.innerHTML = `
+                    <h2>${post.title}</h2>
+                    <p>By ${post.author}</p>
+                    <p>${post.content}</p>
+                    <div class="comments"></div>
+                    <form class="comment-form">
+                        <input type="text" name="content" placeholder="Your comment" required>
+                        <button type="submit">Send</button>
+                    </form>
+                `;
+                blogPostsContainer.appendChild(postDiv);
+
+                // Add event listener for comment submission
+                const commentForm = postDiv.querySelector('.comment-form');
+                commentForm.addEventListener('submit', async (event) => {
+                    event.preventDefault();
+                    const formData = new FormData(commentForm);
+                    const content = formData.get('content');
+                    const postId = post.id;
+                    try {
+                        const response = await fetch(`/comments`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({ postId, content })
+                        });
+                        const comment = await response.json();
+                        const commentsContainer = postDiv.querySelector('.comments');
+                        const commentElement = document.createElement('div');
+                        commentElement.classList.add('comment');
+                        commentElement.innerHTML = `
+                            <p>${comment.content}</p>
+                            <button class="delete-comment" data-comment-id="${comment.id}">Delete</button>
+                        `;
+                        commentsContainer.appendChild(commentElement);
+                        commentForm.reset();
+                    } catch (error) {
+                        console.error('Error adding comment:', error);
+                    }
+                });
+            };
+
+            // Fetch blog posts from the server
+            const fetchBlogPosts = async () => {
+                try {
+                    const response = await fetch('/blog-posts');
+                    const blogPosts = await response.json();
+                    blogPosts.forEach(post => {
+                        renderBlogPost(post);
+                    });
+                } catch (error) {
+                    console.error('Error fetching blog posts:', error);
+                }
+            };
+
+            fetchBlogPosts();
+        });
+
+        document.getElementById('blogPostForm').addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const formData = new FormData(event.target);
+            const title = formData.get('title');
+            const author = formData.get('author');
+            const content = formData.get('content');
+
+            try {
+                const response = await fetch('/blog-posts', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ title, author, content })
+                });
+                const data = await response.json();
+                // Optionally, you can redirect to the newly created blog post
+                // window.location.href = `/blog-posts/${data.id}`;
+                alert('Blog post created successfully!');
+                // Clear the form fields after successful submission
+                document.getElementById('title').value = '';
+                document.getElementById('author').value = '';
+                document.getElementById('content').value = '';
+            } catch (error) {
+                console.error('Error creating blog post:', error);
+                alert('Failed to create blog post. Please try again later.');
+            }
+        });
+    </script>
+</body>
+</html>
