@@ -17,11 +17,10 @@ app.use('/blog-posts', blogPostRoutes);
 app.use('/comments', commentRoutes);
 
 // Serve the blog post creation form
-app.get('/create-blog-post', (req, res) => {
-  res.sendFile(path.join(__dirname, 'views', 'create-blog-post.html'));
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'views', 'create-blog-post.html'));
 });
-
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+    console.log(`Server is running on port ${PORT}`);
 });
