@@ -9,43 +9,44 @@
 <body>
     <div class="container">
         <h1>Create a New Blog Post</h1>
-        <form id="blogPostForm">
-            <label for="title">Title:</label><br>
+        <form id="blogPostForm" method="post">
+            <label for="title">Blog Title:</label><br>
             <input type="text" id="title" name="title" required><br>
-            <label for="author">Author:</label><br>
+            <label for="author">Blog Author:</label><br>
             <input type="text" id="author" name="author" required><br>
-            <label for="content">Content:</label><br>
+            <label for="content">Blog Content:</label><br>
             <textarea id="content" name="content" rows="5" required></textarea><br>
             <button type="submit">Create Blog Post</button>
         </form>
     </div>
 
-    <div class="container" id="blogPosts">
-        <!-- Existing blog posts will be rendered here -->
-    </div>
+    <div id="blogPosts"></div>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.6.8/axios.min.js"></script>
+    
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            const blogPostsContainer = document.getElementById('blogPosts');
+            const blogPostForm = document.getElementById('blogPostForm');
 
-            // Function to render a blog post
             const renderBlogPost = (post) => {
+                const blogPostsContainer = document.getElementById('blogPosts');
                 const postDiv = document.createElement('div');
-                postDiv.classList.add('blog-post');
-                postDiv.dataset.blogPostId = post.id;
+                postDiv.classList.add('container', 'blog-post');
                 postDiv.innerHTML = `
-                    <h2>${post.title}</h2>
-                    <p>By ${post.author}</p>
-                    <p>${post.content}</p>
-                    <div class="comments"></div>
-                    <form class="comment-form">
-                        <input type="text" name="content" placeholder="Your comment" required>
-                        <button type="submit">Send</button>
-                    </form>
+                    <h2>${post.title} <button id="toggle-button">+</button></h2>
+                    <div id="post-content" style="display: none;">
+                        <p>Author - ${post.author}</p>
+                        <p>${post.content}</p>
+                        <form class="comment-form">
+                            <input type="text" name="content" placeholder="Comments" required>
+                            <button type="submit">Comment</button>
+                        </form>
+                        <div class="comments"></div>
+                    </div>
+                    <hr>
                 `;
                 blogPostsContainer.appendChild(postDiv);
 
-                // Add event listener for comment submission
                 const commentForm = postDiv.querySelector('.comment-form');
                 commentForm.addEventListener('submit', async (event) => {
                     event.preventDefault();
@@ -53,72 +54,67 @@
                     const content = formData.get('content');
                     const postId = post.id;
                     try {
-                        const response = await fetch(`/comments`, {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify({ postId, content })
-                        });
-                        const comment = await response.json();
-                        const commentsContainer = postDiv.querySelector('.comments');
-                        const commentElement = document.createElement('div');
-                        commentElement.classList.add('comment');
-                        commentElement.innerHTML = `
-                            <p>${comment.content}</p>
-                            <button class="delete-comment" data-comment-id="${comment.id}">Delete</button>
-                        `;
-                        commentsContainer.appendChild(commentElement);
                         commentForm.reset();
+                        renderComment({ content, postId }, postDiv);
                     } catch (error) {
                         console.error('Error adding comment:', error);
                     }
                 });
+
+                const renderComment = (comment, postDiv) => {
+                    const commentsContainer = postDiv.querySelector('.comments');
+                    const commentDiv = document.createElement('div');
+                    commentDiv.classList.add('comment');
+                    commentDiv.innerHTML = `
+                        <p>${comment.content}</p>
+                        <button class="delete-comment" data-comment-id="${comment.id}">Delete</button>
+                    `;
+                    commentsContainer.appendChild(commentDiv);
+
+                    const deleteButton = commentDiv.querySelector('.delete-comment');
+                    deleteButton.addEventListener('click', async () => {
+                        commentDiv.remove();
+                    });
+                };
+
+                post.comments.forEach(comment => {
+                    renderComment(comment, postDiv);
+                });
+
+                const toggleButton = postDiv.querySelector('#toggle-button');
+                toggleButton.addEventListener('click', function() {
+                    var content = postDiv.querySelector('#post-content');
+                    content.style.display = content.style.display === 'none' ? 'block' : 'none';
+                    this.textContent = this.textContent === '+' ? '-' : '+';
+                });
             };
 
-            // Fetch blog posts from the server
             const fetchBlogPosts = async () => {
                 try {
-                    const response = await fetch('/blog-posts');
-                    const blogPosts = await response.json();
-                    blogPosts.forEach(post => {
-                        renderBlogPost(post);
-                    });
+                    const response = await axios.get('/blog-posts');
+                    response.data.forEach(renderBlogPost);
                 } catch (error) {
                     console.error('Error fetching blog posts:', error);
                 }
             };
 
             fetchBlogPosts();
-        });
 
-        document.getElementById('blogPostForm').addEventListener('submit', async (event) => {
-            event.preventDefault();
-            const formData = new FormData(event.target);
-            const title = formData.get('title');
-            const author = formData.get('author');
-            const content = formData.get('content');
+            blogPostForm.addEventListener('submit', async (event) => {
+                event.preventDefault();
+                const formData = new FormData(blogPostForm);
+                const title = formData.get('title');
+                const author = formData.get('author');
+                const content = formData.get('content');
 
-            try {
-                const response = await fetch('/blog-posts', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ title, author, content })
-                });
-                const data = await response.json();
-                // Optionally, you can redirect to the newly created blog post
-                // window.location.href = `/blog-posts/${data.id}`;
-                alert('Blog post created successfully!');
-                // Clear the form fields after successful submission
-                document.getElementById('title').value = '';
-                document.getElementById('author').value = '';
-                document.getElementById('content').value = '';
-            } catch (error) {
-                console.error('Error creating blog post:', error);
-                alert('Failed to create blog post. Please try again later.');
-            }
+                try {
+                    const response = await axios.post('/blog-posts', { title, author, content });
+                    renderBlogPost(response.data);
+                    blogPostForm.reset();
+                } catch (error) {
+                    console.error('Error creating blog post:', error);
+                }
+            });
         });
     </script>
 </body>
